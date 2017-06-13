@@ -1,0 +1,107 @@
+public class localizacion extends Service {
+
+    PowerManager.WakeLock wakeLock;
+
+    private LocationManager locationManager;
+
+    private LocationListener locationListener = new LocationListener() {
+        @Override
+        public void onLocationChanged(Location location) {
+
+            try {
+                Datos.setLatitud(String.valueOf(location.getLatitude()));
+                Datos.setLongitud(String.valueOf(location.getLongitude()));
+                Datos.setVelocidad(String.valueOf((location.getSpeed() * 3600) / 1000));
+
+                String fecha = android.text.format.DateFormat.format("yyyy-MM-dd HH:mm:ss", new java.util.Date()).toString();
+
+                Datos.setFecha(fecha);
+
+                TelephonyManager t = (TelephonyManager) getApplicationContext().getSystemService(Context.TELEPHONY_SERVICE);
+                String mPhoneNumber = t.getDeviceId();
+
+                Datos.setImei(mPhoneNumber);
+
+                if (location.getAccuracy() > 10)
+                    new ws().execute(Datos.getLatitud(), Datos.getLongitud(), Datos.getVelocidad(), Datos.getImei(), Datos.getFecha());
+
+            } catch (Exception ex) {
+                Log.e("Error", ex.toString());
+            }
+
+        }
+
+        class ws extends AsyncTask<String, Void, Void> {
+            @Override
+            protected Void doInBackground(String... params) {
+                Servicio.Data(params[0], params[1], params[2], params[3], params[4]);
+                return null;
+            }
+        }
+
+
+        @Override
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+
+        }
+
+        @Override
+        public void onProviderEnabled(String provider) {
+
+        }
+
+        @Override
+        public void onProviderDisabled(String provider) {
+
+        }
+    };
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+
+        PowerManager pm = (PowerManager) getSystemService(this.POWER_SERVICE);
+
+        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "DoNotSleep");
+        wakeLock.acquire();
+
+        Log.e("Error", "localizacion");
+    }
+
+    @Nullable
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
+    @Override
+    public void onStart(Intent intent, int startId) {
+        super.onStart(intent, startId);
+
+        Log.e("espina", "espinas");
+
+        locationManager = (LocationManager) getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
+
+        Criteria criteria = new Criteria();
+        criteria.setAccuracy(Criteria.ACCURACY_FINE);
+
+        locationManager.getBestProvider(criteria, true);
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 1, (android.location.LocationListener) locationListener);
+        }
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 1, (android.location.LocationListener) locationListener);
+        }
+
+
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        wakeLock.release();
+    }
+}
